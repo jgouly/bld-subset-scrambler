@@ -59,6 +59,8 @@ function scramble_fn() {
 		return wasm_mod.instance.exports.wasm_2c2cU;
 	} else if (selected == "2e2e") {
 		return wasm_mod.instance.exports.wasm_2e2e;
+	} else if (selected == "3twist") {
+		return wasm_mod.instance.exports.wasm_3twist;
 	}
 	return wasm_mod.instance.exports.wasm_ltct;
 }
@@ -102,6 +104,7 @@ window.addEventListener('load', (event) => {
   <option value="2c2c">2c2c</option>
   <option value="2c2cU">2c2c U layer</option>
   <option value="2e2e">2e2e</option>
+  <option value="3twist">3-twist</option>
 </select>
 <button type="button" onclick="next_case()">next</button>
 <div id="alg"></div>
