@@ -1,0 +1,107 @@
+<title>trainer</title>
+<style>
+			html {
+				font-family: "Monospace", "Courier New";
+				font-size: 2em;
+				width: 90%; height: 90%;
+			}
+			body { width: 90%; height: 90%; padding: 1%; }
+</style>
+<script>
+function h(tag, attrs = {}, children = []) {
+	const node = document.createElement(tag);
+	node.__children = children;
+	Object.entries(attrs).forEach(([k, v]) => {
+			/^on/.test(k)
+				? node.addEventListener(k.slice(2), v)
+				: node.setAttribute(k, v);
+	});
+	return node;
+}
+function render(node, tree) {
+	while(node.firstChild) node.removeChild(node.lastChild);
+	 (function recurse(node, items) {
+		items.forEach((el) => {
+			 node.appendChild(typeof el !== 'object'
+				 ? new Text(el) : recurse(el, el.__children))
+		});
+		return node;
+	})(node, tree);
+}
+
+const stack = [];
+
+function get_stack_str(results) {
+	const [pointer, len] = [stack.pop(), stack.pop()];
+	const buffer = new Uint8Array(
+		results.exports.memory.buffer,
+		pointer,
+		len
+	);
+	const str = String.fromCharCode(...buffer);
+	results.exports.dealloc_str(pointer);
+	return str;
+}
+
+function my_render2(current_case) {
+	const elem = document.getElementById("alg");
+
+	render(elem, [current_case]);
+}
+
+function scramble_fn() {
+	let selected = document.getElementById("scramble").value;
+	if (selected == "ltct") {
+		return wasm_mod.instance.exports.wasm_ltct;
+	} else if (selected == "2c2c") {
+		return wasm_mod.instance.exports.wasm_2c2c;
+	} else if (selected == "2c2cU") {
+		return wasm_mod.instance.exports.wasm_2c2cU;
+	} else if (selected == "2e2e") {
+		return wasm_mod.instance.exports.wasm_2e2e;
+	}
+	return wasm_mod.instance.exports.wasm_ltct;
+}
+
+function next_case() {
+	let fn = scramble_fn()
+	fn();
+	my_render2(get_stack_str(wasm_mod.instance));
+}
+
+const wasm_file = location.origin + '/web_trainer.wasm';
+fetch(wasm_file)
+.then(response =>
+	response.arrayBuffer()
+)
+.then(bytes =>
+	WebAssembly.instantiate(bytes,	{env: {
+		stack_push: (val) => stack.push(val),
+	}})).then(results => {
+		wasm_mod = results;
+		console.time("initialisation");
+		results.instance.exports.init_rng(Math.random(), Math.random());
+		console.timeEnd("initialisation");
+		next_case();
+});
+
+window.addEventListener('load', (event) => {
+	document.getElementById("scramble").addEventListener('change', (event) => {
+		next_case();
+	});
+
+	document.querySelector("body").addEventListener('keypress', (event) => {
+		if (event.keyCode == 32) {
+			next_case();
+		}
+	});
+});
+</script>
+<select name="scramble" id="scramble">
+  <option value="ltct">LTCT</option>
+  <option value="2c2c">2c2c</option>
+  <option value="2c2cU">2c2c U layer</option>
+  <option value="2e2e">2e2e</option>
+</select>
+<button type="button" onclick="next_case()">next</button>
+<div id="alg"></div>
