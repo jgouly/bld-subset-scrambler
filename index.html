@@ -69,7 +69,7 @@ function next_case() {
 	my_render2(get_stack_str(wasm_mod.instance));
 }
 
-const wasm_file = location.origin + '/web_trainer.wasm';
+const wasm_file = window.location.origin + window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/')) + '/web_trainer.wasm';
 fetch(wasm_file)
 .then(response =>
 	response.arrayBuffer()
