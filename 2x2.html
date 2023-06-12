@@ -1,0 +1,75 @@
+<html>
+<head>
+<script>
+var wasm;
+const stack = [];
+
+const wasm_file = window.location.origin + window.location.pathname.slice(0, window.location.pathname.lastIndexOf('/')) + '/pro2x2.wasm';
+fetch(wasm_file).then(response =>
+  response.arrayBuffer()
+).then(bytes =>
+  WebAssembly.instantiate(bytes, {
+    env: {
+      stack_push: (val) => stack.push(val),
+    }
+  })
+).then(results => {
+  wasm = results.instance;
+});
+
+function get_stack_str(results) {
+  const [pointer, len] = [stack.pop(), stack.pop()];
+  const buffer = new Uint8Array(
+    results.exports.memory.buffer,
+    pointer,
+    len
+  );
+  const str = String.fromCharCode(...buffer);
+  results.exports.dealloc_str(pointer);
+  return str;
+}
+
+function create_rust_string(str, results) {
+  const encoder = new TextEncoder();
+  let encoded_str = encoder.encode(str);
+
+  const string_ptr = results.exports.alloc_rust_string(encoded_str.length);
+  const string_mem = results.exports.get_rust_string_ptr(string_ptr);
+
+  const asBytes = new Uint8Array(results.exports.memory.buffer, string_mem,
+                                 encoded_str.length);
+  asBytes.set(encoded_str);
+  return string_ptr;
+}
+
+window.addEventListener('load', (event) => {
+	document.getElementById('solve').addEventListener('click', (event) => {
+    let str = create_rust_string(document.getElementById('scramble').value, wasm);
+    const cll_or_eg = document.getElementById('eg1').checked;
+    const num_at_depth = document.getElementById('num_at_depth').value;
+		console.time('solve');
+    wasm.exports.solve(str, num_at_depth, cll_or_eg);
+		console.timeEnd('solve');
+    let json = get_stack_str(wasm);
+    let solutions = JSON.parse(json);
+    document.getElementById('solutions').innerText = "";
+    for (let i = 0; i < solutions.length; i++) {
+        document.getElementById('solutions').innerText += solutions[i] + "\n";
+    }
+    wasm.exports.dealloc_rust_string(str);
+	});
+});
+</script>
+</head>
+<body>
+<input type="text" id="scramble" size="30"/>
+<input type="button" value="solve" id="solve"/>
+CLL/EG1:
+<input type="radio" id="eg1" name="face_layer" value="EG1/CLL" checked>
+CLL only:
+<input type="radio" id="cll" name="face_layer" value="CLL">
+Num solutions at each depth:
+<input type="number" id="num_at_depth" min="1" max="5" value="2">
+<div id="solutions"></div>
+</body>
+</html>
